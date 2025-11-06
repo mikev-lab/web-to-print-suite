@@ -37,3 +37,24 @@ export interface JobDetails {
   // markupPercent: number;
   // spoilagePercent: number;
 }
+
+export type TransformType = 'stretch' | 'fill';
+
+export interface FileUpload {
+  path: string;
+  transform: TransformType;
+}
+
+export interface FileUploads {
+  interior: { path: string };
+  front: FileUpload;
+  back: FileUpload;
+  spine: FileUpload;
+}
+
+export interface Order {
+  specs: JobDetails;
+  spineWidthInches: number;
+  fileUploads: FileUploads;
+  status: string;
+}

@@ -1,10 +1,137 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { JobDetails, PaperStock, PrintColor } from './types';
+import { getStorage } from 'firebase-admin/storage';
+import { PDFDocument, PDFImage, PDFEmbeddedPage } from 'pdf-lib';
+import { JobDetails, Order, PaperStock, PrintColor } from './types';
 
 initializeApp();
 const db = getFirestore();
+const storage = getStorage();
+
+export const assemblePrintPDF = onCall(async (request) => {
+  const { orderId } = request.data;
+
+  if (!orderId) {
+    throw new HttpsError('invalid-argument', 'The function must be called with an "orderId".');
+  }
+
+  const orderRef = db.collection('orders').doc(orderId);
+
+  try {
+    const orderDoc = await orderRef.get();
+    if (!orderDoc.exists) {
+      throw new HttpsError('not-found', `Order ${orderId} not found.`);
+    }
+    const order = orderDoc.data() as Order;
+
+    const { specs, spineWidthInches, fileUploads } = order;
+    if (!specs || !spineWidthInches || !fileUploads) {
+      throw new HttpsError('failed-precondition', 'Order document is missing required fields.');
+    }
+
+    const downloadFile = async (path: string): Promise<Buffer> => {
+      const [file] = await storage.bucket().file(path).download();
+      return file;
+    };
+
+    const [interiorFile, frontFile, backFile, spineFile] = await Promise.all([
+      downloadFile(fileUploads.interior.path),
+      downloadFile(fileUploads.front.path),
+      downloadFile(fileUploads.back.path),
+      downloadFile(fileUploads.spine.path),
+    ]);
+
+    // ** Cover Assembly **
+    const { finishedWidth, finishedHeight } = specs;
+    const totalWidthInches = (2 * finishedWidth) + spineWidthInches;
+    const totalHeightInches = finishedHeight;
+
+    const coverPdfDoc = await PDFDocument.create();
+    const page = coverPdfDoc.addPage([totalWidthInches * 72, totalHeightInches * 72]);
+
+    const embedImage = async (fileBuffer: Buffer, fileType: string) => {
+      if (fileType.startsWith('image/')) {
+        return fileType === 'image/png'
+          ? await coverPdfDoc.embedPng(fileBuffer)
+          : await coverPdfDoc.embedJpg(fileBuffer);
+      } else if (fileType === 'application/pdf') {
+        const externalPdf = await PDFDocument.load(fileBuffer);
+        const [embeddedPage] = await coverPdfDoc.embedPdf(externalPdf, [0]);
+        return embeddedPage;
+      }
+      throw new HttpsError('invalid-argument', `Unsupported file type: ${fileType}`);
+    };
+
+    const drawCoverPart = async (fileBuffer: Buffer, path: string, x: number, y: number, width: number, height: number, transform: 'stretch' | 'fill') => {
+      const fileType = path.endsWith('.png') ? 'image/png' : path.endsWith('.jpg') || path.endsWith('.jpeg') ? 'image/jpeg' : 'application/pdf';
+      const embeddedContent = await embedImage(fileBuffer, fileType);
+
+      if (!embeddedContent) {
+        throw new HttpsError('internal', 'Failed to embed content.');
+      }
+
+      const dims = embeddedContent.size();
+
+      let drawWidth = width;
+      let drawHeight = height;
+      let imgX = x;
+      let imgY = y;
+
+      if (transform === 'fill') {
+        const targetAspectRatio = width / height;
+        const imageAspectRatio = dims.width / dims.height;
+
+        if (imageAspectRatio > targetAspectRatio) {
+          drawHeight = height;
+          drawWidth = height * imageAspectRatio;
+          imgX = x - (drawWidth - width) / 2;
+        } else {
+          drawWidth = width;
+          drawHeight = width / imageAspectRatio;
+          imgY = y - (drawHeight - height) / 2;
+        }
+      }
+
+      if (embeddedContent instanceof PDFImage) {
+        page.drawImage(embeddedContent, { x: imgX, y: imgY, width: drawWidth, height: drawHeight });
+      } else if (embeddedContent instanceof PDFEmbeddedPage) {
+        page.drawPage(embeddedContent, { x: imgX, y: imgY, width: drawWidth, height: drawHeight });
+      }
+    };
+
+    const finishedWidthPt = finishedWidth * 72;
+    const finishedHeightPt = finishedHeight * 72;
+    const spineWidthPt = spineWidthInches * 72;
+
+    await drawCoverPart(backFile, fileUploads.back.path, 0, 0, finishedWidthPt, finishedHeightPt, fileUploads.back.transform);
+    await drawCoverPart(spineFile, fileUploads.spine.path, finishedWidthPt, 0, spineWidthPt, finishedHeightPt, fileUploads.spine.transform);
+    await drawCoverPart(frontFile, fileUploads.front.path, finishedWidthPt + spineWidthPt, 0, finishedWidthPt, finishedHeightPt, fileUploads.front.transform);
+
+    const finalCoverPdfBytes = await coverPdfDoc.save();
+    const finalInteriorPdfBytes = interiorFile;
+
+    const coverPath = `processed_files/${orderId}/final_cover.pdf`;
+    const interiorPath = `processed_files/${orderId}/final_interior.pdf`;
+
+    await Promise.all([
+      storage.bucket().file(coverPath).save(finalCoverPdfBytes),
+      storage.bucket().file(interiorPath).save(finalInteriorPdfBytes),
+    ]);
+
+    await orderRef.update({
+      status: 'pending_approval',
+      finalCoverPath: coverPath,
+      finalInteriorPath: interiorPath,
+    });
+
+    return { success: true, finalCoverPath: coverPath, finalInteriorPath: interiorPath };
+  } catch (error) {
+    console.error(`PDF assembly failed for order ${orderId}:`, error);
+    await orderRef.update({ status: 'assembly_failed' });
+    throw new HttpsError('internal', 'PDF assembly failed. Please check your files and try again.');
+  }
+});
 
 export const getDynamicPrice = onCall(async (request) => {
   const { data: specs } = request;
@@ -32,39 +159,13 @@ export const getDynamicPrice = onCall(async (request) => {
     return Math.max(fit1, fit2);
   };
 
-  const getPaperThicknessInches = (paper) => {
+  const getPaperThicknessInches = (paper: PaperStock) => {
     const caliperFactor = paper.type === 'Coated' ? 0.9 : 1.3;
     const caliperMicrons = paper.gsm * caliperFactor;
     return caliperMicrons / 25400;
   };
 
-  const calculateSingleBookWeightLbs = (details, bwPaper, colorPaper, coverPaper, spineWidth) => {
-    let totalWeightGrams = 0;
-    const { finishedWidth, finishedHeight, bwPages, colorPages, hasCover } = details;
-
-    if (bwPaper && bwPages > 0) {
-        const bwSheetAreaSqIn = finishedWidth * finishedHeight;
-        const totalBwPaperAreaSqM = (bwPages / 2) * bwSheetAreaSqIn * businessRules.SQ_INCH_TO_SQ_METER;
-        totalWeightGrams += totalBwPaperAreaSqM * bwPaper.gsm;
-    }
-
-    if (colorPaper && colorPages > 0) {
-        const colorSheetAreaSqIn = finishedWidth * finishedHeight;
-        const totalColorPaperAreaSqM = (colorPages / 2) * colorSheetAreaSqIn * businessRules.SQ_INCH_TO_SQ_METER;
-        totalWeightGrams += totalColorPaperAreaSqM * colorPaper.gsm;
-    }
-
-    if (hasCover && coverPaper && spineWidth !== undefined) {
-        const coverSpreadWidth = (finishedWidth * 2) + spineWidth;
-        const coverAreaSqIn = coverSpreadWidth * finishedHeight;
-        const coverAreaSqM = coverAreaSqIn * businessRules.SQ_INCH_TO_SQ_METER;
-        totalWeightGrams += coverAreaSqM * coverPaper.gsm;
-    }
-
-    return totalWeightGrams * businessRules.GRAMS_TO_LBS;
-  };
-
-  const calculateCosts = async (details) => {
+  const calculateCosts = async (details: JobDetails) => {
     const {
       quantity, finishedWidth, finishedHeight,
       bwPages, bwPaperSku, colorPages, colorPaperSku,
@@ -77,9 +178,9 @@ export const getDynamicPrice = onCall(async (request) => {
       coverPaperSku ? db.collection('pricing_matrix').doc(coverPaperSku).get() : Promise.resolve(null),
     ]);
 
-    const bwPaper = bwPaperDoc?.exists ? bwPaperDoc.data() : null;
-    const colorPaper = colorPaperDoc?.exists ? colorPaperDoc.data() : null;
-    const coverPaper = coverPaperDoc?.exists ? coverPaperDoc.data() : null;
+    const bwPaper = bwPaperDoc?.exists ? (bwPaperDoc.data() as PaperStock) : null;
+    const colorPaper = colorPaperDoc?.exists ? (colorPaperDoc.data() as PaperStock) : null;
+    const coverPaper = coverPaperDoc?.exists ? (coverPaperDoc.data() as PaperStock) : null;
 
     const totalInteriorPages = (bwPages > 0 ? bwPages : 0) + (colorPages > 0 ? colorPages : 0);
     if (bindingMethod === 'saddleStitch' && totalInteriorPages > 0 && totalInteriorPages % 4 !== 0) {
