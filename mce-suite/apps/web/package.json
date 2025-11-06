@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@medusajs/medusa-js": "^6.1.10",
+    "@radix-ui/react-label": "^2.1.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.5.0",
