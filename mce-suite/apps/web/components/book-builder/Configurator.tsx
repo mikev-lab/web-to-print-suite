@@ -30,6 +30,39 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
         updateSpecs({ [field]: value });
     };
 
+    const handleInternalPageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        // Allow user to type, validation happens onBlur
+        handleSpecChange('internalPages', value === '' ? '' : parseInt(value));
+    };
+
+    const handleInternalPageBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        let pageCount = parseInt(e.target.value) || 0;
+        const { bindingMethod } = specs;
+
+        let increment = 2;
+        let minPages = 16;
+
+        if (bindingMethod === 'saddle-stitch') {
+            increment = 4;
+            minPages = 4;
+        }
+
+        // Enforce minimum
+        if (pageCount < minPages) {
+            pageCount = minPages;
+        }
+
+        // Round up to the nearest increment
+        const remainder = pageCount % increment;
+        if (remainder !== 0) {
+            pageCount = pageCount + (increment - remainder);
+        }
+
+        handleSpecChange('internalPages', pageCount);
+    };
+
+
     useEffect(() => {
         const calculatePrice = async () => {
             try {
@@ -80,12 +113,23 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
                             <Input id="quantity" type="number" value={specs.quantity} onChange={(e) => handleSpecChange('quantity', parseInt(e.target.value))} />
                         </div>
                         <div>
-                            <Label htmlFor="finishedWidth">Finished Width (in)</Label>
-                            <Input id="finishedWidth" type="number" value={specs.finishedWidth} onChange={(e) => handleSpecChange('finishedWidth', parseFloat(e.target.value))} />
-                        </div>
-                        <div>
-                            <Label htmlFor="finishedHeight">Finished Height (in)</Label>
-                            <Input id="finishedHeight" type="number" value={specs.finishedHeight} onChange={(e) => handleSpecChange('finishedHeight', parseFloat(e.target.value))} />
+                            <Label htmlFor="size">Size</Label>
+                            <Select onValueChange={(value) => handleSpecChange('size', value)} value={specs.size}>
+                                <SelectTrigger><SelectValue placeholder="Select a size" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Letter">Letter (8.5" x 11")</SelectItem>
+                                    <SelectItem value="Standard Comic">Standard Comic (6.625" x 10.25")</SelectItem>
+                                    <SelectItem value="A4">A4 (8.27" x 11.69")</SelectItem>
+                                    <SelectItem value="B5">B5 (7.17" x 10.12")</SelectItem>
+                                    <SelectItem value="Trade Paperback">Trade Paperback (6" x 9")</SelectItem>
+                                    <SelectItem value="A5">A5 (5.83" x 8.27")</SelectItem>
+                                    <SelectItem value="Digest">Digest (5.5" x 8.5")</SelectItem>
+                                    <SelectItem value="Tankōbon">Tankōbon (5" x 7.5")</SelectItem>
+                                    <SelectItem value="B6">B6 (5.04" x 7.17")</SelectItem>
+                                    <SelectItem value="A6">A6 (4.13" x 5.83")</SelectItem>
+                                    <SelectItem value="Mass Market Paperback">Mass Market Paperback (4.25" x 6.87")</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div>
                             <Label htmlFor="bindingMethod">Binding Method</Label>
@@ -102,28 +146,41 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
                 <Card>
                     <CardHeader><CardTitle>Interior</CardTitle></CardHeader>
                     <CardContent className="space-y-6">
-                         <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4 items-center">
                             <div>
-                                <Label htmlFor="bwPages">B&W Pages</Label>
-                                <Input id="bwPages" type="number" value={specs.bwPages} onChange={(e) => handleSpecChange('bwPages', parseInt(e.target.value))} />
+                                <Label htmlFor="internalPages">Internal Pages</Label>
+                                <Input
+                                    id="internalPages"
+                                    type="number"
+                                    value={specs.internalPages}
+                                    onChange={handleInternalPageChange}
+                                    onBlur={handleInternalPageBlur}
+                                />
                             </div>
-                            <div>
-                                <Label htmlFor="colorPages">Color Pages</Label>
-                                <Input id="colorPages" type="number" value={specs.colorPages} onChange={(e) => handleSpecChange('colorPages', parseInt(e.target.value))} />
+                            <div className="flex items-center space-x-2 pt-6">
+                                <Switch
+                                    id="interiorIsColor"
+                                    checked={specs.interiorIsColor}
+                                    onCheckedChange={(checked) => handleSpecChange('interiorIsColor', checked)}
+                                />
+                                <Label htmlFor="interiorIsColor">Color Interior</Label>
                             </div>
                         </div>
-                        <VisualPaperSelector
-                            title="B&W Interior Paper"
-                            usage="B/W Text and Manga"
-                            selectedValue={specs.bwPaperSku}
-                            onSelect={(sku) => handleSpecChange('bwPaperSku', sku)}
-                        />
-                        <VisualPaperSelector
-                            title="Color Interior Paper"
-                            usage="Internal Color Images"
-                            selectedValue={specs.colorPaperSku}
-                            onSelect={(sku) => handleSpecChange('colorPaperSku', sku)}
-                        />
+                        {specs.interiorIsColor ? (
+                            <VisualPaperSelector
+                                title="Color Interior Paper"
+                                usage="Internal Color Images"
+                                selectedValue={specs.colorPaperSku}
+                                onSelect={(sku) => handleSpecChange('colorPaperSku', sku)}
+                            />
+                        ) : (
+                            <VisualPaperSelector
+                                title="B&W Interior Paper"
+                                usage="B/W Text and Manga"
+                                selectedValue={specs.bwPaperSku}
+                                onSelect={(sku) => handleSpecChange('bwPaperSku', sku)}
+                            />
+                        )}
                     </CardContent>
                 </Card>
                 <Card>
@@ -139,27 +196,26 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
                             selectedValue={specs.coverPaperSku}
                             onSelect={(sku) => handleSpecChange('coverPaperSku', sku)}
                         />
-                         <div className="flex items-center space-x-2">
-                            <Switch id="coverPrintsOnBothSides" checked={specs.coverPrintsOnBothSides} onCheckedChange={(checked) => handleSpecChange('coverPrintsOnBothSides', checked)} />
-                            <Label htmlFor="coverPrintsOnBothSides">Cover Prints on Both Sides</Label>
-                        </div>
                         <div>
                             <Label htmlFor="laminationType">Lamination Type</Label>
                             <Select onValueChange={(value) => handleSpecChange('laminationType', value)} value={specs.laminationType}>
                                 <SelectTrigger><SelectValue placeholder="Select lamination" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="gloss">Gloss</SelectItem>
-                                    <SelectItem value="matte">Matte</SelectItem>
+                                    <SelectItem value="None">None</SelectItem>
+                                    <SelectItem value="Gloss">Gloss</SelectItem>
+                                    <SelectItem value="Matte">Matte</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                         <div>
+                        <div>
                             <Label htmlFor="coverPrintColor">Cover Print Color</Label>
                             <Select onValueChange={(value) => handleSpecChange('coverPrintColor', value)} value={specs.coverPrintColor}>
                                 <SelectTrigger><SelectValue placeholder="Select print color" /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="4/0">4/0 (Color Front)</SelectItem>
-                                    <SelectItem value="4/4">4/4 (Color Both Sides)</SelectItem>
+                                    <SelectItem value="4/0 Full Color One Side">4/0 Full Color One Side</SelectItem>
+                                    <SelectItem value="4/4 Full Color Both Sides">4/4 Full Color Both Sides</SelectItem>
+                                    <SelectItem value="1/0 Black and White One Side">1/0 Black and White One Side</SelectItem>
+                                    <SelectItem value="1/1 Black and White Both Sides">1/1 Black and White Both Sides</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

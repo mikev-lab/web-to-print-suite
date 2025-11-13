@@ -5,15 +5,13 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 // Define the shape of the form specifications
 interface Specs {
   quantity: number;
-  finishedWidth: number;
-  finishedHeight: number;
-  bwPages: number;
-  colorPages: number;
+  size: string; // New field for size dropdown
+  internalPages: number;
+  interiorIsColor: boolean; // true for Color, false for B&W
   bwPaperSku: string;
   colorPaperSku: string;
   coverPaperSku: string;
   hasCover: boolean;
-  coverPrintsOnBothSides: boolean;
   bindingMethod: string;
   laminationType: string;
   coverPrintColor: string;
@@ -41,18 +39,16 @@ const BuilderContext = createContext<BuilderContextState | undefined>(undefined)
 export const BuilderProvider = ({ children }: { children: ReactNode }) => {
   const [specs, setSpecs] = useState<Specs>({
     quantity: 1,
-    finishedWidth: 8.5,
-    finishedHeight: 11,
-    bwPages: 0,
-    colorPages: 0,
+    size: 'Letter',
+    internalPages: 16,
+    interiorIsColor: false, // Default to B&W
     bwPaperSku: '',
     colorPaperSku: '',
     coverPaperSku: '',
     hasCover: true,
-    coverPrintsOnBothSides: false,
-    bindingMethod: '',
-    laminationType: '',
-    coverPrintColor: '',
+    bindingMethod: 'perfect-bound',
+    laminationType: 'None',
+    coverPrintColor: '4/0 Full Color One Side',
   });
 
   const [pricingResults, setPricingResults] = useState<PricingResults>({

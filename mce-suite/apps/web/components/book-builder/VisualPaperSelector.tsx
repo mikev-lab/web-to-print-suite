@@ -12,6 +12,7 @@ interface Paper {
   sku: string;
   name: string;
   gsm: number;
+  type?: string; // Type is optional as it may not be in all Firestore docs
   thumbnailUrl?: string;
   usage: string;
 }
@@ -48,6 +49,24 @@ export default function VisualPaperSelector({ usage, selectedValue, onSelect, ti
     return <div>Loading paper options...</div>;
   }
 
+  const formatPaperName = (paper: Paper) => {
+    // Regex to find the weight, which is typically a number followed by '#' or 'lb'
+    const weightMatch = paper.name.match(/\d+(#|lb)/);
+    const weight = weightMatch ? weightMatch[0] : '';
+
+    // Use the type field if it exists, otherwise infer it from the name
+    let type = paper.type;
+    if (!type) {
+        const lowerCaseName = paper.name.toLowerCase();
+        if (lowerCaseName.includes('gloss')) type = 'Coated';
+        else if (lowerCaseName.includes('silk')) type = 'Coated';
+        else if (lowerCaseName.includes('matte')) type = 'Coated';
+        else type = 'Uncoated';
+    }
+
+    return `${weight} ${type}`;
+  };
+
   return (
     <div>
         <h3 className="text-lg font-semibold mb-2">{title}</h3>
@@ -69,7 +88,7 @@ export default function VisualPaperSelector({ usage, selectedValue, onSelect, ti
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" /></svg>
                 )}
                 </div>
-                <p className="text-sm font-medium text-center">{paper.name}</p>
+                <p className="text-sm font-medium text-center">{formatPaperName(paper)}</p>
                 <p className="text-xs text-muted-foreground text-center">{paper.gsm} GSM</p>
             </CardContent>
             </Card>
