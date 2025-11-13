@@ -144,7 +144,7 @@ export const getDynamicPrice = onCall(async (request) => {
   if (!businessRulesDoc.exists) {
     throw new HttpsError('not-found', 'Business rules not found.');
   }
-  const businessRules = businessRulesDoc.data();
+  const businessRules = businessRulesDoc.data() as any;
 
   const {
     laborRate = businessRules.defaultLaborRate,
@@ -152,7 +152,7 @@ export const getDynamicPrice = onCall(async (request) => {
     spoilagePercent = businessRules.defaultSpoilagePercent,
   } = businessRules;
 
-  const calculateImposition = (parentW, parentH, jobW, jobH) => {
+  const calculateImposition = (parentW: number, parentH: number, jobW: number, jobH: number) => {
     if (jobW <= 0 || jobH <= 0) return 0;
     const fit1 = Math.floor(parentW / jobW) * Math.floor(parentH / jobH);
     const fit2 = Math.floor(parentW / jobH) * Math.floor(parentH / jobW);
@@ -283,7 +283,7 @@ export const getDynamicPrice = onCall(async (request) => {
     };
   };
 
-  const addBusinessDays = (startDate, days) => {
+  const addBusinessDays = (startDate: Date, days: number) => {
     let currentDate = new Date(startDate);
     let addedDays = 0;
     while (addedDays < days) {

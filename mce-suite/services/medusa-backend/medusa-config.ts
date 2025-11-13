@@ -4,7 +4,10 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
 module.exports = defineConfig({
   projectConfig: {
-    databaseUrl: process.env.DATABASE_URL,
+    databaseUrl: process.env.DB_HOST
+      ? `postgres://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@localhost/${process.env.DB_DATABASE}?host=${process.env.DB_HOST}`
+      : process.env.DATABASE_URL,
+    redisUrl: process.env.REDIS_URL,
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,

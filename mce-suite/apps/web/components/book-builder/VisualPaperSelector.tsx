@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils'; // Assuming you have a utility for class names
 
@@ -30,7 +30,7 @@ export default function VisualPaperSelector({ usage, selectedValue, onSelect, ti
   useEffect(() => {
     const fetchPapers = async () => {
       setLoading(true);
-      const papersRef = collection(firestore, 'pricing_matrix');
+      const papersRef = collection(db, 'pricing_matrix');
       const q = query(papersRef, where('usage', '==', usage));
       const querySnapshot = await getDocs(q);
       const fetchedPapers = querySnapshot.docs.map((doc) => ({

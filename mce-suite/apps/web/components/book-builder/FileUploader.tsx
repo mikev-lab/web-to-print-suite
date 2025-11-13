@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import UppyUploader from './UppyUploader';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -26,7 +26,7 @@ export default function FileUploader({ orderId, onUploadComplete }: FileUploader
   });
 
   const updateFirestore = async (data: Record<string, any>) => {
-    const orderRef = doc(firestore, 'orders', orderId);
+    const orderRef = doc(db, 'orders', orderId);
     await updateDoc(orderRef, { fileUploads: data });
     onUploadComplete(data);
   };

@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "mceprinting-web-to-print"
-  }
+    "default": "mceprinting-web-to-print",
+    "main": "mceprinting-web-to-print"
+  },
+  "targets": {},
+  "etags": {}
 }

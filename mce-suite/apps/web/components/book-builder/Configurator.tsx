@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useBuilder } from '@/context/BuilderContext';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { firestore, functions } from '@/lib/firebase'; // Assuming you have a firebase config file
+import { db, functions } from '@/lib/firebase'; // Assuming you have a firebase config file
 import { httpsCallable } from 'firebase/functions';
 import { useAuth } from '@/context/AuthContext'; // To get the user ID
 
@@ -50,7 +50,7 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
             return;
         }
 
-        const newOrderRef = doc(collection(firestore, 'orders'));
+        const newOrderRef = doc(collection(db, 'orders'));
         const orderId = newOrderRef.id;
 
         const orderData = {
