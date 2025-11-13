@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function VisualPreview() {
     const { specs, pricingResults } = useBuilder();
-    const totalPages = (specs.bwPages || 0) + (specs.colorPages || 0);
+    const totalPages = specs.internalPages || 0;
 
     return (
         <Card>
