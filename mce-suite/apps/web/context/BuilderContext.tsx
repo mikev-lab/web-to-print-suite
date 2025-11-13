@@ -28,7 +28,7 @@ interface PricingResults {
 // Define the shape of the context state
 interface BuilderContextState {
   specs: Specs;
-  setSpecs: (specs: Specs) => void;
+  updateSpecs: (newSpecs: Partial<Specs>) => void;
   pricingResults: PricingResults;
   setPricingResults: (results: PricingResults) => void;
   // Add other state and setters as needed for file uploads, etc.
@@ -60,9 +60,16 @@ export const BuilderProvider = ({ children }: { children: ReactNode }) => {
     spineWidthInches: 0,
   });
 
+  const updateSpecs = (newSpecs: Partial<Specs>) => {
+    setSpecs((prevSpecs) => ({
+      ...prevSpecs,
+      ...newSpecs,
+    }));
+  };
+
   const value = {
     specs,
-    setSpecs,
+    updateSpecs,
     pricingResults,
     setPricingResults,
   };

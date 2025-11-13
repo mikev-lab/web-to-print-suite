@@ -22,12 +22,12 @@ const getDynamicPrice = httpsCallable(functions, 'getDynamicPrice');
 
 
 export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue: (orderId: string) => void }) {
-    const { specs, setSpecs, pricingResults, setPricingResults } = useBuilder();
+    const { specs, updateSpecs, pricingResults, setPricingResults } = useBuilder();
     const { user } = useAuth();
     const router = useRouter();
 
     const handleSpecChange = (field: string, value: any) => {
-        setSpecs({ ...specs, [field]: value });
+        updateSpecs({ [field]: value });
     };
 
     useEffect(() => {
