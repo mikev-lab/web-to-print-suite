@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+// ADDED useState import
+import { useEffect, useState } from 'react'; 
 import { useBuilder } from '@/context/BuilderContext';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase'; // Assuming you have a firebase config file
+import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { useAuth } from '@/context/AuthContext'; // To get the user ID
+import { useAuth } from '@/context/AuthContext';
 
 import VisualPreview from './VisualPreview';
 import VisualPaperSelector from './VisualPaperSelector';
@@ -25,6 +26,9 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
     const { specs, updateSpecs, pricingResults, setPricingResults } = useBuilder();
     const { user } = useAuth();
     const router = useRouter();
+
+    // NEW: State to manage the visibility of debug details
+    const [showDebug, setShowDebug] = useState(false);
 
     const handleSpecChange = (field: string, value: any) => {
         updateSpecs({ [field]: value });
@@ -66,6 +70,9 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
     useEffect(() => {
         const calculatePrice = async () => {
             try {
+                // IMPORTANT: The cloud function getDynamicPrice must be updated
+                // to return the new PricingResults structure including
+                // 'calculationDetails' for the next step to work.
                 const result: any = await getDynamicPrice(specs);
                 setPricingResults(result.data);
             } catch (error) {
@@ -101,13 +108,17 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
         onSaveAndContinue(orderId);
     };
 
+    const details = pricingResults.calculationDetails || {}; // Use a fallback object
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
             {/* Left Column (Form) */}
             <div className="lg:col-span-3 space-y-6">
+                {/* ... (Specifications Card) */}
                 <Card>
                     <CardHeader><CardTitle>Specifications</CardTitle></CardHeader>
                     <CardContent className="grid grid-cols-2 gap-4">
+                        {/* ... (Quantity, Size, Binding Method inputs) ... */}
                         <div>
                             <Label htmlFor="quantity">Quantity</Label>
                             <Input id="quantity" type="number" value={specs.quantity} onChange={(e) => handleSpecChange('quantity', parseInt(e.target.value))} />
@@ -143,6 +154,7 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
                         </div>
                     </CardContent>
                 </Card>
+                {/* ... (Interior Card) ... */}
                 <Card>
                     <CardHeader><CardTitle>Interior</CardTitle></CardHeader>
                     <CardContent className="space-y-6">
@@ -183,6 +195,7 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
                         )}
                     </CardContent>
                 </Card>
+                {/* ... (Cover Card) ... */}
                 <Card>
                     <CardHeader><CardTitle>Cover</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -233,7 +246,36 @@ export default function Configurator({ onSaveAndContinue }: { onSaveAndContinue:
                             <p className="text-sm text-muted-foreground">Spine: {pricingResults.spineWidthInches.toFixed(4)}"</p>
                         </CardContent>
                     </Card>
+
                     <VisualPreview />
+
+                    {/* NEW: Debug Toggle */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4">
+                            <CardTitle className="text-sm font-medium">Calculation Debug View</CardTitle>
+                            <Switch checked={showDebug} onCheckedChange={setShowDebug} />
+                        </CardHeader>
+                    </Card>
+
+                    {/* NEW: Verbose Details Display */}
+                    {showDebug && details.internalSpineInches !== undefined && (
+                        <Card>
+                            <CardHeader><CardTitle className="text-md">Verbose Calculation Details</CardTitle></CardHeader>
+                            <CardContent className="text-xs space-y-1">
+                                <p><strong>Paper Thickness (B/W):</strong> {details.bwPaperThicknessInches.toFixed(6)}"</p>
+                                <p><strong>Paper Thickness (Color):</strong> {details.colorPaperThicknessInches.toFixed(6)}"</p>
+                                <hr className="my-1" />
+                                <p><strong>Internal Block Spine:</strong> {details.internalSpineInches.toFixed(4)}"</p>
+                                <p><strong>Cover Allowance:</strong> {details.coverSpineAllowanceInches.toFixed(4)}" (Lamination + Cover Stock)</p>
+                                <hr className="my-1" />
+                                <p><strong>Total Material Cost:</strong> ${details.totalMaterialCost.toFixed(2)}</p>
+                                <p><strong>Total Print/Labor Cost:</strong> ${details.totalPrintCost.toFixed(2)}</p>
+                                <hr className="my-1" />
+                                <p className="text-sm font-semibold">Final Spine Width: {pricingResults.spineWidthInches.toFixed(4)}"</p>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <Button onClick={handleSaveAndContinue} className="w-full">Save & Continue</Button>
                 </div>
             </div>

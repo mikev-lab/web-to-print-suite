@@ -7,5 +7,13 @@ export declare const getDynamicPrice: import("firebase-functions/v2/https").Call
     totalPrice: number;
     estimatedDeliveryDate: string;
     spineWidthInches: number;
+    calculationDetails: {
+        bwPaperThicknessInches: number;
+        colorPaperThicknessInches: number;
+        internalSpineInches: number;
+        coverSpineAllowanceInches: number;
+        totalMaterialCost: number;
+        totalPrintCost: number;
+    };
 }>>;
 //# sourceMappingURL=index.d.ts.map

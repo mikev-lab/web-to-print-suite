@@ -17,10 +17,21 @@ interface Specs {
   coverPrintColor: string;
 }
 
+interface CalculationDetails {
+  bwPaperThicknessInches: number; // Thickness per page of B&W paper used
+  colorPaperThicknessInches: number; // Thickness per page of Color paper used
+  internalSpineInches: number; // Total spine calculation *before* cover wrap
+  coverSpineAllowanceInches: number; // Spine allowance for the cover wrap paper
+  totalMaterialCost: number;
+  totalPrintCost: number;
+  // Add any other intermediate variables you want to inspect
+}
+
 // Define the shape of the pricing results
 interface PricingResults {
   totalPrice: number;
   spineWidthInches: number;
+  calculationDetails: CalculationDetails;
 }
 
 // Define the shape of the context state
@@ -54,6 +65,14 @@ export const BuilderProvider = ({ children }: { children: ReactNode }) => {
   const [pricingResults, setPricingResults] = useState<PricingResults>({
     totalPrice: 0,
     spineWidthInches: 0,
+    calculationDetails: {
+      bwPaperThicknessInches: 0,
+      colorPaperThicknessInches: 0,
+      internalSpineInches: 0,
+      coverSpineAllowanceInches: 0,
+      totalMaterialCost: 0,
+      totalPrintCost: 0,
+    },
   });
 
   const updateSpecs = (newSpecs: Partial<Specs>) => {

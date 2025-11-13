@@ -182,6 +182,19 @@ export const getDynamicPrice = onCall(async (request) => {
     const colorPaper = colorPaperDoc?.exists ? (colorPaperDoc.data() as PaperStock) : null;
     const coverPaper = coverPaperDoc?.exists ? (coverPaperDoc.data() as PaperStock) : null;
 
+    // --- START: NEW Intermediate Variables for Debugging ---
+    let bwPaperThickness = 0;
+    let colorPaperThickness = 0;
+    let internalSpineInches = 0;
+    let coverSpineAllowanceInches = 0;
+    let totalMaterialCost = 0;
+    let totalPrintCost = 0;
+    let finalSpineWidth = 0;
+
+    // Assume lamination thickness (0.005 inches per side) if not in business rules
+    const LAMINATION_THICKNESS_INCHES = businessRules.LAMINATION_THICKNESS_INCHES || 0.005;
+    // --- END: NEW Intermediate Variables for Debugging ---
+
     const totalInteriorPages = (bwPages > 0 ? bwPages : 0) + (colorPages > 0 ? colorPages : 0);
     if (bindingMethod === 'saddleStitch' && totalInteriorPages > 0 && totalInteriorPages % 4 !== 0) {
       throw new HttpsError('invalid-argument', 'Saddle stitch requires the total interior page count to be a multiple of 4.');
@@ -193,18 +206,39 @@ export const getDynamicPrice = onCall(async (request) => {
     const colorImposition = colorPaper ? calculateImposition(colorPaper.parentWidth, colorPaper.parentHeight, finishedWidth, finishedHeight) : 0;
 
     let coverImposition = 0;
-    let spineWidth = 0;
+    
+    // RENAMED from spineWidth to internalSpineInches (to match verbose view)
     if (hasCover && coverPaper) {
       if (bindingMethod === 'perfectBound') {
         const bwLeaves = Math.ceil((bwPages > 0 ? bwPages : 0) / 2);
         const colorLeaves = Math.ceil((colorPages > 0 ? colorPages : 0) / 2);
 
-        const bwPaperThickness = (bwPaper && bwPages > 0) ? getPaperThicknessInches(bwPaper) : 0;
-        const colorPaperThickness = (colorPaper && colorPages > 0) ? getPaperThicknessInches(colorPaper) : 0;
+        // Capture B/W Paper Thickness
+        bwPaperThickness = (bwPaper && bwPages > 0) ? getPaperThicknessInches(bwPaper) : 0;
+        // Capture Color Paper Thickness
+        colorPaperThickness = (colorPaper && colorPages > 0) ? getPaperThicknessInches(colorPaper) : 0;
 
-        spineWidth = (bwLeaves * bwPaperThickness) + (colorLeaves * colorPaperThickness);
+        // Calculate interior block spine
+        internalSpineInches = (bwLeaves * bwPaperThickness) + (colorLeaves * colorPaperThickness);
+        
+        // Calculate cover thickness allowance (1 sheet, 2 sides)
+        const coverThickness = getPaperThicknessInches(coverPaper);
+        // FIX: Changed 'None' to 'none' to match the LaminationType enum/literal type
+        const laminationThickness = laminationType !== 'none' ? LAMINATION_THICKNESS_INCHES * 2 : 0;
+        
+        coverSpineAllowanceInches = coverThickness + laminationThickness;
+
+        // Final spine width for the cover design
+        finalSpineWidth = internalSpineInches + coverSpineAllowanceInches;
+
+      } else {
+          // Saddle-stitch has negligible spine thickness for calculation
+          internalSpineInches = 0;
+          finalSpineWidth = 0; 
       }
-      const coverSpreadWidth = (finishedWidth * 2) + spineWidth;
+      
+      // Use the FINAL spine width when calculating the required cover spread width
+      const coverSpreadWidth = (finishedWidth * 2) + finalSpineWidth; 
       const coverSpreadHeight = finishedHeight;
       const maxPossibleImposition = calculateImposition(coverPaper.parentWidth, coverPaper.parentHeight, coverSpreadWidth, coverSpreadHeight);
 
@@ -240,6 +274,10 @@ export const getDynamicPrice = onCall(async (request) => {
 
     const laminationCost = (hasCover && laminationType !== 'none' && quantity > 0) ? (laminationType === 'gloss' ? businessRules.GLOSS_LAMINATE_COST_PER_COVER : businessRules.MATTE_LAMINATE_COST_PER_COVER) * quantity : 0;
 
+    // Capture verbose material and print costs
+    totalMaterialCost = bwPaperCost + colorPaperCost + coverPaperCost;
+    totalPrintCost = bwClickCost + colorClickCost + coverClickCost;
+
     const totalPressSheets = bwPressSheets + colorPressSheets + coverPressSheets;
     const printingTimeMins = totalPressSheets / businessRules.PRINTING_SPEED_SPM;
 
@@ -271,7 +309,7 @@ export const getDynamicPrice = onCall(async (request) => {
     const productionTimeHours = totalTimeMins / 60;
     const laborCost = productionTimeHours * laborRate;
 
-    const subtotal = (bwPaperCost + colorPaperCost + coverPaperCost) + (bwClickCost + colorClickCost + coverClickCost) + laminationCost + laborCost;
+    const subtotal = totalMaterialCost + totalPrintCost + laminationCost + laborCost;
     const markupAmount = subtotal * (markupPercent / 100);
 
     const totalCost = subtotal + markupAmount;
@@ -279,7 +317,17 @@ export const getDynamicPrice = onCall(async (request) => {
     return {
       totalPrice: totalCost,
       productionTimeHours,
-      spineWidthInches: spineWidth,
+      spineWidthInches: finalSpineWidth, // Return the final spine width
+      
+      // NEW: Verbose Calculation Details
+      calculationDetails: {
+          bwPaperThicknessInches: bwPaperThickness,
+          colorPaperThicknessInches: colorPaperThickness,
+          internalSpineInches: internalSpineInches,
+          coverSpineAllowanceInches: coverSpineAllowanceInches,
+          totalMaterialCost: totalMaterialCost,
+          totalPrintCost: totalPrintCost,
+      }
     };
   };
 
@@ -306,5 +354,7 @@ export const getDynamicPrice = onCall(async (request) => {
     totalPrice: result.totalPrice,
     estimatedDeliveryDate: estimatedDeliveryDate.toISOString(),
     spineWidthInches: result.spineWidthInches,
+    // FIX: Include the new verbose details object
+    calculationDetails: result.calculationDetails, 
   };
 });
