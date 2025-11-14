@@ -373,10 +373,10 @@ export const getDynamicPrice = onCall(async (request) => {
     colorPaperSku: specs.colorPaperSku,
     hasCover: specs.hasCover,
     coverPaperSku: specs.coverPaperSku,
-    coverPrintColor: specs.coverPrintColor as PrintColor,
-    coverPrintsOnBothSides: specs.coverPrintColor === '4/4 Full Color Both Sides' || specs.coverPrintColor === '1/1 Black and White Both Sides',
-    laminationType: specs.laminationType as LaminationType,
-    bindingMethod: specs.bindingMethod as BindingMethod,
+    coverPrintColor: specs.coverPrintColor.startsWith('4/') ? PrintColor.COLOR : PrintColor.BW,
+    coverPrintsOnBothSides: specs.coverPrintColor.includes('Both Sides'),
+    laminationType: specs.laminationType.toLowerCase() as LaminationType,
+    bindingMethod: specs.bindingMethod === 'perfect-bound' ? 'perfectBound' : 'saddleStitch' as BindingMethod,
   };
 
   const result = await calculateCosts(jobDetails);

@@ -92,7 +92,7 @@ export default function VisualPaperSelector({ usage, selectedValue, onSelect, ti
                 )}
                 </div>
                 <p className="text-sm font-medium text-center">{formatPaperName(paper)}</p>
-                <p className="text-xs text-muted-foreground text-center">{paper.gsm} GSM</p>
+                <p className="text-xs text-muted-foreground text-center">{paper.gsm} gsm</p>
             </CardContent>
             </Card>
         ))}

@@ -1,18 +1,3 @@
-// Defines the shape of the data coming from the client-side 'specs'
-export interface OrderSpecs {
-  quantity: number;
-  size: string; // e.g., "Letter", "A4"
-  internalPages: number;
-  interiorIsColor: boolean;
-  bwPaperSku: string;
-  colorPaperSku: string;
-  coverPaperSku: string;
-  hasCover: boolean;
-  bindingMethod: string;
-  laminationType: string;
-  coverPrintColor: string;
-}
-
 // Defines the detailed, processed job properties for calculation
 export interface JobDetails {
   quantity: number;
@@ -43,10 +28,8 @@ export interface PaperStock {
 }
 
 export enum PrintColor {
-    COLOR = '4/0 Full Color One Side',
-    COLOR_BOTH_SIDES = '4/4 Full Color Both Sides',
-    BW = '1/0 Black and White One Side',
-    BW_BOTH_SIDES = '1/1 Black and White Both Sides',
+  COLOR = 'color',
+  BW = 'bw',
 }
 
 export type LaminationType = 'none' | 'gloss' | 'matte';
@@ -58,19 +41,12 @@ export interface FileUpload {
 }
 
 export interface Order {
-  id: string;
-  userId: string;
   specs: JobDetails;
-  totalPrice: number;
   spineWidthInches: number;
-  status: 'pending_files' | 'pending_approval' | 'in_production' | 'shipped' | 'assembly_failed';
-  createdAt: any; // Firestore Timestamp
-  fileUploads?: {
+  fileUploads: {
     interior: FileUpload;
     front: FileUpload;
     back: FileUpload;
     spine: FileUpload;
   };
-  finalCoverPath?: string;
-  finalInteriorPath?: string;
 }
