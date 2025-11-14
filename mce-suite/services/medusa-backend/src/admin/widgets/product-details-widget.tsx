@@ -7,7 +7,7 @@ import { debounce } from "lodash"
 const ProductDetailsWidget = () => {
   const { id } = useParams()
   const { product } = useAdminProduct(id!, {
-    fields: "+paper_details",
+    expand: "paper_details",
   })
   const { mutate: updateProduct } = useAdminUpdateProduct(id!)
 

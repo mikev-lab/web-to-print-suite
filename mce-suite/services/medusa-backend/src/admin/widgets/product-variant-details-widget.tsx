@@ -9,7 +9,7 @@ const ProductVariantDetailsWidget = () => {
   const { variants } = useAdminVariants({
     product_id: id,
     id: variant_id,
-    fields: "+paper_details",
+    expand: "paper_details",
   })
   const variant = variants?.[0]
   const { mutate: updateVariant } = useAdminUpdateVariant(id!)

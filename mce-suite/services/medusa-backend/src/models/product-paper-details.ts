@@ -1,5 +1,4 @@
-import { BaseEntity } from "@medusajs/medusa"
-import { Product } from "@models"
+import { BaseEntity, Product } from "@medusajs/medusa"
 import { generateEntityId } from "@medusajs/utils"
 import {
   BeforeInsert,
