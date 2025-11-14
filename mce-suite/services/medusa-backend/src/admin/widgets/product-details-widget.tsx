@@ -6,28 +6,33 @@ import { debounce } from "lodash"
 
 const ProductDetailsWidget = () => {
   const { id } = useParams()
-  const { product } = useAdminProduct(id!)
+  const { product } = useAdminProduct(id!, {
+    fields: "+paper_details",
+  })
   const { mutate: updateProduct } = useAdminUpdateProduct(id!)
 
-  const [usage, setUsage] = useState(product?.usage || "")
-  const [type, setType] = useState(product?.type || "")
-  const [finish, setFinish] = useState(product?.finish || "")
+  const [usage, setUsage] = useState(product?.paper_details?.usage || "")
+  const [type, setType] = useState(product?.paper_details?.type || "")
+  const [finish, setFinish] = useState(product?.paper_details?.finish || "")
 
   const debouncedUpdate = debounce((data) => {
     updateProduct(data)
   }, 500)
 
   useEffect(() => {
-    if (product) {
-      setUsage(product.usage || "")
-      setType(product.type || "")
-      setFinish(product.finish || "")
+    if (product?.paper_details) {
+      setUsage(product.paper_details.usage || "")
+      setType(product.paper_details.type || "")
+      setFinish(product.paper_details.finish || "")
     }
   }, [product])
 
   const handleUpdate = (field, value) => {
     const updateData = {
-      [field]: value,
+      paper_details: {
+        ...product.paper_details,
+        [field]: value,
+      },
     }
 
     if (field === "usage") {
@@ -38,10 +43,7 @@ const ProductDetailsWidget = () => {
       setFinish(value)
     }
 
-    debouncedUpdate({
-      ...product,
-      ...updateData,
-    })
+    debouncedUpdate(updateData)
   }
 
   return (

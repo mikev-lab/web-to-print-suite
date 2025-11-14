@@ -6,33 +6,44 @@ import { debounce } from "lodash"
 
 const ProductVariantDetailsWidget = () => {
   const { id, variant_id } = useParams()
-  const { variants } = useAdminVariants({ product_id: id, id: variant_id })
+  const { variants } = useAdminVariants({
+    product_id: id,
+    id: variant_id,
+    fields: "+paper_details",
+  })
   const variant = variants?.[0]
-  const { mutate: updateVariant } = useAdminUpdateVariant(id!, variant_id!)
+  const { mutate: updateVariant } = useAdminUpdateVariant(id!)
 
-  const [costPerM, setCostPerM] = useState(variant?.costPerM || "")
-  const [gsm, setGsm] = useState(variant?.gsm || "")
-  const [parentWidth, setParentWidth] = useState(variant?.parentWidth || "")
+  const [costPerM, setCostPerM] = useState(
+    variant?.paper_details?.costPerM || ""
+  )
+  const [gsm, setGsm] = useState(variant?.paper_details?.gsm || "")
+  const [parentWidth, setParentWidth] = useState(
+    variant?.paper_details?.parentWidth || ""
+  )
   const [parentHeight, setParentHeight] = useState(
-    variant?.parentHeight || ""
+    variant?.paper_details?.parentHeight || ""
   )
 
   const debouncedUpdate = debounce((data) => {
-    updateVariant(data)
+    updateVariant({ variant_id, ...data })
   }, 500)
 
   useEffect(() => {
-    if (variant) {
-      setCostPerM(variant.costPerM || "")
-      setGsm(variant.gsm || "")
-      setParentWidth(variant.parentWidth || "")
-      setParentHeight(variant.parentHeight || "")
+    if (variant?.paper_details) {
+      setCostPerM(variant.paper_details.costPerM || "")
+      setGsm(variant.paper_details.gsm || "")
+      setParentWidth(variant.paper_details.parentWidth || "")
+      setParentHeight(variant.paper_details.parentHeight || "")
     }
   }, [variant])
 
   const handleUpdate = (field, value) => {
     const updateData = {
-      [field]: value,
+      paper_details: {
+        ...variant.paper_details,
+        [field]: value,
+      },
     }
 
     if (field === "costPerM") {
@@ -45,10 +56,7 @@ const ProductVariantDetailsWidget = () => {
       setParentHeight(value)
     }
 
-    debouncedUpdate({
-      ...variant,
-      ...updateData,
-    })
+    debouncedUpdate(updateData)
   }
 
   return (
