@@ -1,13 +1,30 @@
+// Defines the detailed, processed job properties for calculation
+export interface JobDetails {
+  quantity: number;
+  finishedWidth: number;
+  finishedHeight: number;
+  bwPages: number;
+  bwPaperSku: string;
+  colorPages: number;
+  colorPaperSku: string;
+  hasCover: boolean;
+  coverPaperSku: string;
+  coverPrintColor: PrintColor;
+  coverPrintsOnBothSides: boolean;
+  laminationType: LaminationType;
+  bindingMethod: BindingMethod;
+}
+
 export interface PaperStock {
+  id: string;
+  sku: string;
   name: string;
   gsm: number;
   type: 'Coated' | 'Uncoated';
-  finish: string;
   parentWidth: number;
   parentHeight: number;
-  sku: string;
   costPerSheet: number;
-  usage: string;
+  usage: 'B/W Text and Manga' | 'Internal Color Images' | 'Covers';
 }
 
 export enum PrintColor {
@@ -18,43 +35,18 @@ export enum PrintColor {
 export type LaminationType = 'none' | 'gloss' | 'matte';
 export type BindingMethod = 'none' | 'perfectBound' | 'saddleStitch';
 
-export interface JobDetails {
-  quantity: number;
-  finishedWidth: number;
-  finishedHeight: number;
-  bwPages: number;
-  bwPaperSku?: string;
-  colorPages: number;
-  colorPaperSku?: string;
-  hasCover: boolean;
-  coverPaperSku?: string;
-  coverPrintColor: PrintColor;
-  coverPrintsOnBothSides: boolean;
-  laminationType: LaminationType;
-  bindingMethod: BindingMethod;
-  // These will be read from the server, not passed from the client
-  // laborRate: number;
-  // markupPercent: number;
-  // spoilagePercent: number;
-}
-
-export type TransformType = 'stretch' | 'fill';
-
 export interface FileUpload {
   path: string;
-  transform: TransformType;
-}
-
-export interface FileUploads {
-  interior: { path: string };
-  front: FileUpload;
-  back: FileUpload;
-  spine: FileUpload;
+  transform: 'stretch' | 'fill';
 }
 
 export interface Order {
   specs: JobDetails;
   spineWidthInches: number;
-  fileUploads: FileUploads;
-  status: string;
+  fileUploads: {
+    interior: FileUpload;
+    front: FileUpload;
+    back: FileUpload;
+    spine: FileUpload;
+  };
 }

@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { PDFDocument, PDFImage, PDFEmbeddedPage } from 'pdf-lib';
-import { JobDetails, Order, PaperStock, PrintColor } from './types';
+import { JobDetails, Order, PaperStock, PrintColor, LaminationType, BindingMethod } from './types';
 
 initializeApp();
 const db = getFirestore();
@@ -344,7 +344,42 @@ export const getDynamicPrice = onCall(async (request) => {
     return currentDate;
   };
 
-  const result = await calculateCosts(specs);
+  const sizeDimensions: { [key: string]: { width: number; height: number } } = {
+    'Letter': { width: 8.5, height: 11 },
+    'Standard Comic': { width: 6.625, height: 10.25 },
+    'A4': { width: 8.27, height: 11.69 },
+    'B5': { width: 7.17, height: 10.12 },
+    'Trade Paperback': { width: 6, height: 9 },
+    'A5': { width: 5.83, height: 8.27 },
+    'Digest': { width: 5.5, height: 8.5 },
+    'Tankōbon': { width: 5, height: 7.5 },
+    'B6': { width: 5.04, height: 7.17 },
+    'A6': { width: 4.13, height: 5.83 },
+    'Mass Market Paperback': { width: 4.25, height: 6.87 },
+  };
+
+  const dimensions = sizeDimensions[specs.size];
+  if (!dimensions) {
+    throw new HttpsError('invalid-argument', `Unsupported size: ${specs.size}`);
+  }
+
+  const jobDetails: JobDetails = {
+    quantity: specs.quantity,
+    finishedWidth: dimensions.width,
+    finishedHeight: dimensions.height,
+    bwPages: specs.interiorIsColor ? 0 : specs.internalPages,
+    bwPaperSku: specs.bwPaperSku,
+    colorPages: specs.interiorIsColor ? specs.internalPages : 0,
+    colorPaperSku: specs.colorPaperSku,
+    hasCover: specs.hasCover,
+    coverPaperSku: specs.coverPaperSku,
+    coverPrintColor: specs.coverPrintColor.startsWith('4/') ? PrintColor.COLOR : PrintColor.BW,
+    coverPrintsOnBothSides: specs.coverPrintColor.includes('Both Sides'),
+    laminationType: specs.laminationType.toLowerCase() as LaminationType,
+    bindingMethod: specs.bindingMethod === 'perfect-bound' ? 'perfectBound' : 'saddleStitch' as BindingMethod,
+  };
+
+  const result = await calculateCosts(jobDetails);
 
   const productionDays = Math.ceil(result.productionTimeHours / 8);
   const totalBusinessDays = productionDays + 3; // 3-day shipping stub

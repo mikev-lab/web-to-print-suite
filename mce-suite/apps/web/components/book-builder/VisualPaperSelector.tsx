@@ -58,10 +58,13 @@ export default function VisualPaperSelector({ usage, selectedValue, onSelect, ti
     let type = paper.type;
     if (!type) {
         const lowerCaseName = paper.name.toLowerCase();
-        if (lowerCaseName.includes('gloss')) type = 'Coated';
-        else if (lowerCaseName.includes('silk')) type = 'Coated';
-        else if (lowerCaseName.includes('matte')) type = 'Coated';
-        else type = 'Uncoated';
+        if (lowerCaseName.includes('gloss')) {
+            type = 'Gloss';
+        } else if (lowerCaseName.includes('silk')) {
+            type = 'Silk';
+        } else {
+            type = 'Opaque';
+        }
     }
 
     return `${weight} ${type}`;
@@ -89,7 +92,7 @@ export default function VisualPaperSelector({ usage, selectedValue, onSelect, ti
                 )}
                 </div>
                 <p className="text-sm font-medium text-center">{formatPaperName(paper)}</p>
-                <p className="text-xs text-muted-foreground text-center">{paper.gsm} GSM</p>
+                <p className="text-xs text-muted-foreground text-center">{paper.gsm} gsm</p>
             </CardContent>
             </Card>
         ))}
